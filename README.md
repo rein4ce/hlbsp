@@ -20,7 +20,7 @@ Feel free to extend this project! It would be awesome to see some animated chara
 
 
 
-Code was initially inspired by Brandon Jone's Quake2 viewer.
+Code was initially inspired by Brandon Jones's Quake2 viewer.
 It uses gl-utils and js-struct libraries written by him, go, take a look!
 https://github.com/toji
 
