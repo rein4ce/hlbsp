@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Half-Life Map Viewer</title>
+    <script type="text/javascript"  src="js/jquery.js"></script>
+    <script type="text/javascript"  src="js/binFile.js"></script>
+    <script type="text/javascript"  src="js/glMatrix.js"></script>
+    <script type="text/javascript"  src="js/glUtil.js"></script>
+    <script type="text/javascript"  src="js/js-struct.js"></script>
+    <script type="text/javascript"  src="js/modellist.js"></script>
+    <script type="text/javascript"  src="js/maplist.js"></script>
+    <script type="text/javascript"  src="js/utils.js"></script>
+    <script type="text/javascript"  src="js/entities.js"></script>
+    <script type="text/javascript"  src="js/hlbsp.js"></script>
+    <script type="text/javascript"  src="js/hlwad.js"></script>
+    <script type="text/javascript"  src="js/hlmdl.js"></script>
+    <script type="text/javascript"  src="js/game.js"></script>
+    <script type="text/javascript">
+
+        var MapPath = "data/valve/maps/";
+        var game = null;
+        var currentMapIndex = 2;
+
+        function changeMap(index)
+        {
+            currentMapIndex = index;
+            game.loadMap(MapPath+MapsList[currentMapIndex]);
+            $("#map-name").text(MapsList[currentMapIndex]);
+            $("#map-list ul li").removeClass("active");
+            var top = $("#map-list ul li:eq("+index+")").addClass("active").position().top;
+            console.log(top)
+            $("#map-list ul").scrollTop(top);
+        }
+
+        $(function()
+        {
+            game = new Game();
+            game.loadMap(MapPath+MapsList[currentMapIndex]);
+            $("#map-name").text(MapsList[currentMapIndex]);
+
+            $("#prev").click(function()
+            {
+                if (--currentMapIndex < 0) currentMapIndex = MapsList.length - 1;
+                changeMap(currentMapIndex);
+            });
+
+            $("#next").click(function()
+            {
+                if (++currentMapIndex == MapsList.length) currentMapIndex = 0;
+                changeMap(currentMapIndex);
+            });
+
+            $("#random").click(function()
+            {
+                currentMapIndex = (Math.random() * MapsList.length)|0;
+                changeMap(currentMapIndex);
+            });
+
+            var list = $("#map-list ul").empty();
+            for (var i=0; i<MapsList.length; i++)
+            {
+                var item = $("<li/>").html("&equiv;&nbsp;&nbsp;&nbsp;"+MapsList[i]);
+                list.append(item);
+                item[0].idx = i;
+                if (i==currentMapIndex) item.addClass("active");
+                item.click(function(e)
+                {
+                    changeMap(e.target.idx);
+                });
+            }
+        });
+
+    </script>
+
+    <!-- Shaders -->
+    <script id="lightmap-vs" type="x-shader/x-vertex">
+        #ifdef GL_ES
+        precision highp float;
+        #endif
+
+        attribute vec3 position;
+        attribute vec2 texCoord;
+        attribute vec2 texCoord2;
+
+        varying vec2 vTexCoord;
+        varying vec2 vLightmapCoord;
+
+        uniform mat4 modelViewMat;
+        uniform mat4 projectionMat;
+
+        void main(void) {
+        vTexCoord = texCoord;
+        vLightmapCoord = texCoord2;
+
+        vec4 worldPosition = modelViewMat * vec4(position, 1.0);
+        gl_Position = projectionMat * worldPosition;
+        }
+    </script>
+
+    <script id="lightmap-fs" type="x-shader/x-fragment">
+        #ifdef GL_ES
+        precision highp float;
+        #endif
+
+        varying vec2 vTexCoord;
+        varying vec2 vLightmapCoord;
+
+        uniform float alpha;
+        uniform sampler2D diffuse;
+        uniform sampler2D lightmap;
+
+        void main(void) {
+        vec4 diffuseColor = texture2D(diffuse, vTexCoord.st);
+        vec4 lightColor = texture2D(lightmap, vLightmapCoord.st);
+
+        gl_FragColor = vec4(diffuseColor.rgb * lightColor.rgb, diffuseColor.a * alpha);
+        }
+    </script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+        }
+        #container {
+            margin: 5px;
+            position: relative;
+        }
+        #viewport-overlay {
+            position: absolute;
+            top: 0; left: 0;
+            pointer-events: none;
+        }
+        #viewport-overlay > .nav {
+            pointer-events: auto;
+            position: absolute;
+            cursor: pointer;
+            width: 100px;
+            font: 13px Arial;
+            line-height: 35px;
+            color: white;
+            text-shadow: 1px 1px 0 black;
+            bottom: 0;
+            opacity: 0.3;
+            text-align: center;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        #viewport-overlay > .nav:hover {
+            opacity: 1;
+            background: rgba(255,255,255,0.1);
+        }
+        #map-name {
+            position: absolute;
+            font: bold 12px Arial;
+            color: white;
+            text-shadow: 1px 1px 0 black;
+            bottom: 0;
+            width: 100%;
+            line-height: 35px;
+            text-align: center;
+            opacity: 0.6;
+        }
+        #map-list {
+            position: absolute;
+            right: -155px;
+            width: 150px;
+            height: 100%;
+            background: #f9f9f9;
+            overflow-y: scroll;
+            padding: 3px;
+            opacity: 0.35;
+            transition: opacity .25s ease-in-out;
+            -moz-transition: opacity .25s ease-in-out;
+            -webkit-transition: opacity .25s ease-in-out;
+        }
+        #map-list:hover {
+            opacity: 1;
+        }
+        #map-list ul {
+            list-style: none;
+            pointer-events: auto;
+        }
+        #map-list ul li {
+            font: 11px Arial;
+            color: #bbb;
+            padding: 4px 4px 4px 8px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+        }
+        #map-list ul li:hover {
+            background: #fcfcfc;
+            color: #333;
+        }
+        #map-list ul li.active {
+            color: black;
+            font-weight: bold;
+            background: #fff;
+            border-bottom-color: #999;
+        }
+
+        #loading {
+            background: rgba(0,0,0,0.85);
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            font: bold 16px Arial;
+            line-height: 600px;
+            color: white;
+            text-shadow: 1px 1px 0px black;
+        }
+    </style>
+</head>
+
+
+<body>
+    <div id="container">
+        <canvas id="viewport"></canvas>
+        <div id="viewport-overlay">
+            <div id="prev" class="nav" style="left: 0; border-right: 1px solid white">&larr;&nbsp;&nbsp;&nbsp;Previous</div>
+            <div id="next" class="nav" style="right: 0; border-left: 1px solid white">Next&nbsp;&nbsp;&nbsp;&rarr;</div>
+            <span id="map-name">c3a1.bsp</span>
+            <div id="loading">Loading...</div>
+            <div id="map-list">
+                <ul>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+
+</body>
+</html>
