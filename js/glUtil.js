@@ -33,7 +33,7 @@ function getAvailableContext(canvas, contextList) {
 	if (canvas.getContext) {
 		for (var i = 0; i < contextList.length; ++i) {
 			try {
-				var context = canvas.getContext(contextList[i]);
+				var context = canvas.getContext(contextList[i], {alpha: false});
 				if (context != null) return context;
 			} catch (ex) {}
 		}

@@ -28,7 +28,6 @@
             $("#map-name").text(MapsList[currentMapIndex]);
             $("#map-list ul li").removeClass("active");
             var top = $("#map-list ul li:eq("+index+")").addClass("active").position().top;
-            console.log(top)
             $("#map-list ul").scrollTop(top);
         }
 

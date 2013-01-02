@@ -1,3 +1,26 @@
+/*
+ * Copyright (c) 2012 Michael Domanski
+ *
+ * This software is provided 'as-is', without any express or implied
+ * warranty. In no event will the authors be held liable for any damages
+ * arising from the use of this software.
+ *
+ * Permission is granted to anyone to use this software for any purpose,
+ * including commercial applications, and to alter it and redistribute it
+ * freely, subject to the following restrictions:
+ *
+ *    1. The origin of this software must not be misrepresented; you must not
+ *    claim that you wrote the original software. If you use this software
+ *    in a product, an acknowledgment in the product documentation would be
+ *    appreciated but is not required.
+ *
+ *    2. Altered source versions must be plainly marked as such, and must not
+ *    be misrepresented as being the original software.
+ *
+ *    3. This notice may not be removed or altered from any source
+ *    distribution.
+ */
+
 var LUMP_ENTITIES			= 0,
 	LUMP_PLANES				= 1,
 	LUMP_TEXTURES			= 2,
@@ -138,6 +161,8 @@ var HLBSP = function(filename, callback)
 }
 
 HLBSP.Debug = false;
+HLBSP.Textures = {};			// textures map that lasts through the sessions
+HLBSP.ShowTextures = false;
 
 HLBSP.prototype =
 {
@@ -247,7 +272,6 @@ HLBSP.prototype =
 			map.textures = bsp.mipTex;
 			self.compile(bsp, map, buffer);
 			onload && onload(map);
-			$("#loading").hide();
 		});
 	},
 
@@ -262,33 +286,107 @@ HLBSP.prototype =
 		var world = this.findEntity("worldspawn");
 		if (!world) throw "Error: Unable to find WAD file in entity list";
 
-		//HLBSP.Debug && console.log(world)
+		var toLoad = [];
 
-		var wadFiles = world.wad.split(";");
-		var self = this;
-		HLBSP.Debug && console.log("WAD Files: ", wadFiles);
-
-		var loaded = 0;
-		for (var i=0; i<wadFiles.length; i++)
+		for (var i=0; i<this.bsp.mipTex.length; i++)
 		{
-			var tex = HLWAD.load(wadFiles[i].replace("quiver", "data").replace("\\",""), this.bsp.mipTex, function()
+			var tex = this.bsp.mipTex[i];
+			if (HLBSP.Textures[tex.szname])
 			{
-				loaded++;
-				if (loaded == wadFiles.length && callback)
+				createTexture(HLBSP.Textures[tex.szname].image, tex.szname);
+				continue;
+			}
+			toLoad.push(tex.szname);
+		}
+
+		var self = this;
+		var loaded = 0;
+
+		function createTexture(image, name)
+		{
+			var log2 = Math.log(2);
+			var pow2 = Math.ceil(Math.log(image.width) / log2);
+			var newWidth = Math.pow(2, pow2);
+			pow2 = Math.ceil(Math.log(image.height) / log2);
+			var newHeight = Math.pow(2, pow2);
+
+			var cv = document.createElement("canvas");
+			var cvctx = cv.getContext("2d");
+			cv.width = newWidth;
+			cv.height = newHeight;
+
+			cvctx.drawImage(image, 0, 0, image.width, image.height, 0, 0, newWidth, newHeight);
+			var idata = cvctx.getImageData(0, 0, newWidth, newHeight);
+			var data = new Uint8Array(idata.data);
+
+			for (var i=0; i<data.length; i+=4)
+			{
+				if (data[i] < 30 && data[i+1] < 30 && data[i+2] > 125)		// TODO: detect blue mask in JPEGs
 				{
-					HLBSP.Debug && console.log("All WAD files loaded");
-
-					// check if all textures have been found in WAD files
-					for (var i=0; i<self.bsp.mipTex.length; i++)
-					{
-						var tex = self.bsp.mipTex[i];
-						if (!tex.image) console.error(tex.szname+" is missing a texture image");
-					}
-
-					callback();
+					data[i+3] = 0;
 				}
+			}
+
+			var texture =
+			{
+				image: image,
+				width: newWidth,
+				height: newHeight,
+				texture: gl.createTexture(),
+				translucent: name == "aaatrigger"
+			};
+
+			gl.bindTexture(gl.TEXTURE_2D, texture.texture);
+			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, newWidth,newHeight, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+
+			HLBSP.Textures[name] = texture;
+
+			if (HLBSP.ShowTextures) document.body.appendChild(cv);
+		}
+
+		function finish()
+		{
+			HLBSP.Debug && console.log("Finished loading all images");
+
+			for (var i=0; i<self.bsp.mipTex.length; i++)
+				self.bsp.mipTex[i].image = HLBSP.Textures[self.bsp.mipTex[i].szname];
+
+			$("#loading").hide();
+		}
+
+		if (toLoad.length == 0)
+		{
+			finish();
+		}
+		else
+		{
+			$.each(toLoad, function(i, name)
+			{
+				var path = "data/textures/_"+toLoad[i]+".jpg";
+				var img = new Image();
+				img.addEventListener("load", function()
+				{
+					createTexture(img, name);
+
+					if (++loaded == toLoad.length)
+					{
+						finish();
+					}
+				});
+				img.addEventListener("error", function(err)
+				{
+					console.error(err);
+					img.src = "data/textures/_BLACK.jpg";
+					return true;
+				});
+
+				img.src = path;
 			});
 		}
+
+		callback();			// Proceed right away, load textures asynchronously
 	},
 
 	parseEntities: function(buffer)
