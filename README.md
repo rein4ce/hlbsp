@@ -9,6 +9,9 @@ https://dl.dropbox.com/u/11531325/hlbsp/index.html
 
 **(Please note, the levels and textures might take a while to load)**
 
+*Update 02.01.2012*
+- removed WAD texture loading, using plain JPG images now (loading times improved vastly!)
+- alpha mask textures support
 
 NOTES:
 - .bsp, .wad and .mdl files are loaded and processed as binary files
