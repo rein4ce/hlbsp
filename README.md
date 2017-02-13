@@ -5,7 +5,7 @@ This project loads and displays .bsp and .mdl files from the game Half-Life, usi
 
 DEMO:
 -----
-https://dl.dropbox.com/u/11531325/hlbsp/index.html
+https://hlbsp.updog.co/
 
 **(Please note, the levels and textures might take a while to load)**
 
