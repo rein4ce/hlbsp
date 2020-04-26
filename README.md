@@ -5,7 +5,7 @@ This project loads and displays .bsp and .mdl files from the game Half-Life, usi
 
 DEMO:
 -----
-https://hlbsp.updog.co/
+https://hlbsp.netlify.app/
 
 **(Please note, the levels and textures might take a while to load)**
 
